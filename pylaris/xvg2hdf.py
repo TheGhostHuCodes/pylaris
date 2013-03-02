@@ -1,10 +1,10 @@
 import sys
 from time import time
-from tables import *
-from numpy import *
+from tables import openFile, IsDescription, UInt8Col, FloatCol
+from numpy import array
 
 def xvg_gen_maker(xvg_file):
-    """Form a generator function that generates individual parsings of one
+    """Makes a generator function that generates individual parsings of one
     complete snapshot of atoms. This method is used to process the very large
     *.xvg files without having to load the whole file into memory."""
     # Internal index used for naming snapshots.
@@ -42,17 +42,18 @@ def xvg_gen_maker(xvg_file):
         if coord_line:
             coord_list.append(line)
             # Read ahead one line to see if it is the end of the atomic
-            # coordinates list. If so, write the *.xyz file, reset the
-            # coord_list to empty, and increase the index by one, then go to
-            # the beginning of the loop. NOTICE: the delimiter for the end of
-            # the atomic coordinates list is one line that consists of a hash
-            # and 80 dashes. Reaching the end of the line, we do not read
-            # another line from the *.xvg file. We go directly to the beginning
-            # of the loop. Since the next line is not a hash and 80 dashes the
-            # above code sets coord_line to "False". Also the *.xvg files
-            # abruptly end without a nice hash and 80 dashes at the end of the
-            # file so we also test for the EOF. In python EOF is represented by
-            # the return of a zero length string from the readline() function.
+            # coordinates list. If so, return snapshot index and coord_list,
+            # reset the coord_list to empty, and increase the index by one,
+            # then go to the beginning of the loop. NOTICE: the delimiter for
+            # the end of the atomic coordinates list is one line that consists
+            # of a hash and 80 dashes. Reaching the end of the line, we do not
+            # read another line from the *.xvg file. We go directly to the
+            # beginning of the loop. Since the next line is not a hash and 80
+            # dashes the above code sets coord_line to "False". Also the *.xvg
+            # files abruptly end without a nice hash and 80 dashes at the end
+            # of the file so we also test for the EOF. In python EOF is
+            # represented by the return of a zero length string from the
+            # readline() function.
             line = xvg_file.readline()
             if (line.strip() == '#'+80*'-') or (len(line) == 0):
                 yield (i, coord_list)
@@ -61,11 +62,11 @@ def xvg_gen_maker(xvg_file):
             continue
         # If the line is neither a hash and 80 dashes, nor is coord_line "True"
         # then the line must be some kind of other output that we're not
-        # interested in. Read another line.
+        # interested in (for now). Read another line.
         line = xvg_file.readline()
 
 class Snapshot(IsDescription):
-    """Defines a table that encapsulates a single snapshot of an MD
+    """Defines a HDF5 table that encapsulates a single snapshot of an MD
     simulation."""
     # Unsigned byte.
     atomic_number = UInt8Col(pos=0)
@@ -79,17 +80,17 @@ if __name__ == "__main__":
 
     # Make a generator out of the xvg file.
     xvg = xvg_gen_maker(open(xvg_file, 'r'))
-    # Start timing total computation time.
+    # Start timing total conversion time.
     start_time = time()
 
     filename = xvg_file.split('.')[0]
-    # Open an HDF5 file for writing
+    # Open a HDF5 file for writing
     h5_file = openFile(filename + '.h5', mode='w', title=filename)
     # Create a new group under '/' (root)
     calc_meta_group = h5_file.createGroup('/', 'calculation_input',
         "MD Calculation Input")
     simulation_group = h5_file.createGroup('/', 'simulation',
-        "Full MD simulation (all snapshots")
+        "Full MD simulation (all snapshots)")
 
     for id_num, snapshot_list in xvg:
         atom_num = []
