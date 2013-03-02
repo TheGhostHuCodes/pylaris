@@ -1,5 +1,12 @@
+#!/usr/bin/env python
+
+"""xvg2hdf.py: Takes a path to a *.xvg file and outputs a *.h5 HDF5 database
+file in the same directory."""
+
+# Import built-in modules.
 import sys
 from time import time
+# Import third-party modules.
 from tables import openFile, IsDescription, UInt8Col, FloatCol
 from numpy import array
 
