@@ -1,10 +1,11 @@
 #!/usr/bin/env python
 
-"""xvg2hdf.py: Takes a path to a *.xvg file and outputs a *.h5 HDF5 database
-file in the same directory."""
+"""xvg2hdf.py: Takes a path to a *.xvg and *.sle file and outputs a *.h5 HDF5
+database file in the same directory."""
 
 # Import built-in modules.
 import sys
+import os.path
 from time import time
 # Import third-party modules.
 from tables import openFile, IsDescription, UInt8Col, FloatCol
@@ -90,7 +91,9 @@ if __name__ == "__main__":
     # Start timing total conversion time.
     start_time = time()
 
-    filename = xvg_file.split('.')[0]
+    # Properly parse input file path
+    pathname, full_filename = os.path.split(xvg_file)
+    filename, file_ext = os.path.splitext(full_filename)
     # Open a HDF5 file for writing
     h5_file = openFile(filename + '.h5', mode='w', title=filename)
     # Create a new group under '/' (root)
