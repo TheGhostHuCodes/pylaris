@@ -1,5 +1,14 @@
+#!/usr/bin/env python
+
+"""xvg2hdf.py: Takes a path to a *.xvg and *.sle file and outputs a *.h5 HDF5
+database file in the same directory."""
+
+# Import built-in modules.
 import sys
+import os.path
+import os
 from time import time
+# Import third-party modules.
 from tables import openFile, IsDescription, UInt8Col, FloatCol
 from numpy import array
 
@@ -65,6 +74,20 @@ def xvg_gen_maker(xvg_file):
         # interested in (for now). Read another line.
         line = xvg_file.readline()
 
+def sle_parser(sle_file):
+    sle_list = sle_file.readlines()
+    box_size = sle_list[1].split()
+    print box_size
+    return (float(box_size[3]), float(box_size[4]), float(box_size[5]))
+
+class SimParams(IsDescription):
+    """Defines a HDF5 table that encapsulates the parameters used for the whole
+    MD trajectory simulation."""
+    # Double-precision MD simulation box size.
+    box_x = FloatCol()
+    box_y = FloatCol()
+    box_z = FloatCol()
+
 class Snapshot(IsDescription):
     """Defines a HDF5 table that encapsulates a single snapshot of an MD
     simulation."""
@@ -77,18 +100,31 @@ class Snapshot(IsDescription):
 
 if __name__ == "__main__":
     xvg_file = sys.argv[1]
+    # Properly parse input file path
+    pathname, full_filename = os.path.split(xvg_file)
+    filename, file_ext = os.path.splitext(full_filename)
 
+    os.chdir(pathname)
     # Make a generator out of the xvg file.
-    xvg = xvg_gen_maker(open(xvg_file, 'r'))
+    xvg = xvg_gen_maker(open(full_filename, 'r'))
     # Start timing total conversion time.
     start_time = time()
 
-    filename = xvg_file.split('.')[0]
     # Open a HDF5 file for writing
     h5_file = openFile(filename + '.h5', mode='w', title=filename)
     # Create a new group under '/' (root)
     calc_meta_group = h5_file.createGroup('/', 'calculation_input',
         "MD Calculation Input")
+    md_parameters = h5_file.createTable('/calculation_input', 'md_params',
+            SimParams)
+    parameter_values = md_parameters.row
+    box_params = sle_parser(open(filename + '.sle', 'r'))
+    parameter_values['box_x'] = box_params[0]
+    parameter_values['box_y'] = box_params[1]
+    parameter_values['box_z'] = box_params[2]
+    parameter_values.append()
+    md_parameters.flush()
+
     simulation_group = h5_file.createGroup('/', 'simulation',
         "Full MD simulation (all snapshots)")
 
